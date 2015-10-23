@@ -1,0 +1,69 @@
+import json
+import crypt
+
+def red(p):
+  x=p[::-1]
+  first_eight_characters=x[:8]
+  index = 0
+  h=''
+  while index < len(first_eight_characters):
+        l = first_eight_characters[index]
+        v = ord(l)%26
+        g=v+97
+        h= h+chr(g)
+        index += 1
+  return h
+
+
+
+def hash(p):
+    l= crypt.crypt(p,'$1$HUSKIES!$')
+    return l
+
+with open('table.json')as data_file:
+      data=json.load(data_file)
+       valuelist=data["chains"]
+       startlist=[]
+       endlist=[]
+       i=0
+for word in valuelist:
+    dict=valuelist[i]
+    start=dict["start"]
+    end=dict["end"]
+    startlist.append(start)
+    endlist.append(end)
+    i+=1
+s=0
+j=0
+p = raw_input('Please enter  password: ')
+q=p
+k=0
+y=0
+while y<1:
+ h=red(p)
+ for sublist in endlist:
+    if sublist == h:
+        print "Found it!", sublist,j
+        l=j
+        y+=1
+        break
+    else:
+        j+=1
+        y=0
+ p=hash(h)
+ k+=1
+ print(h,p,k,y)
+r=data["chains"][l]["start"]
+h=hash(r)
+t=0
+while h!=q:
+            print(k)
+            y=red(h)
+            h=hash(y)
+            t+=1
+            if h==q:
+             print('match found')
+             print(y)
+             break
+            else :
+             print('match not found')
