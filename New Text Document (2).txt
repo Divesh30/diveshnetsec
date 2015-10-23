@@ -1,0 +1,183 @@
+import socket
+import base64
+import sys
+import json
+import struct
+from Crypto.Cipher import ARC4 as cipher
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+host = socket.gethostname()
+
+print host
+
+port = 5452
+
+s.connect(('127.0.0.1', port))
+
+data = open('data.json').read()
+
+print data
+
+json_len = len(data)
+
+print "json length", json_len
+
+ascii_json = chr(json_len)
+
+print ascii_json
+
+json_4byte = "\0\0\0"+str(ascii_json)
+
+print json_4byte
+print"-------------------------------1st part------------------------"
+s.send(json_4byte)
+k=s.send(data)
+print(k)
+
+result1=s.recv(4)
+result = s.recv(176)
+print result
+
+print "----------------------------------end of 1st part-------------"
+result_len = len(result)
+print result_len
+k='\xeb\xb0\x18\xbd\xa2\x09\xde\xbb\xc4\x5e\x77\x00\xdc\x0e\x99\xb5'
+print"-----------------------decrypting the result-------------------"
+obj=cipher.new(k)
+x=obj.decrypt(result)
+print(x)
+print(type(x))
+
+y=json.loads(x)
+print(type(y))
+g=y["blob"]
+print"--------------------blob-------------------------------------------"
+print(g)
+t=str(g)
+print(type(t))
+key=base64.b64decode(t)
+print key
+print"----------------------session key-----------------------------------"
+h=y["session_key"]
+print h
+k=str(h)
+ses=base64.b64decode(k)
+print ses
+print"---------------------------------------------------------------------"
+print(type(key))
+l=str(key)
+print(type(l))
+json_l_k = len(l)
+print json_l_k
+print"----------------------------------------------------------------------"
+ascii_key = chr(json_l_k)
+
+print ascii_key
+print"-----------------------------------------------------------------------"
+json_4b = "\0\0\0"+str(ascii_key)
+print(json_4b)
+print"------------------------------------------------------------------------"
+
+
+s1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+host = socket.gethostname()
+
+port = 5453
+
+s1.connect(('127.0.0.1', port))
+print json_4b
+print"----------------------------sending to blob------------------------------"
+s1.send(json_4b)
+s1.send(key)
+
+
+print s1.recv(4)
+k=s1.recv(100)
+print(k)
+print"----------------------------decrypting-------------------------------------" 
+obj=cipher.new(ses)
+x=obj.decrypt(k)
+print(x)
+print(type(x))
+l=json.loads(x)
+print"--------------------------------nonce---------------------------------------"
+print l
+c=l["nonce"]
+nonce_alt=c-1
+x=obj.encrypt(json.dumps({'nonce':nonce_alt}))
+print x
+print"----------------------------recieving the secret----------------------------------"
+s1.sendall(struct.pack('>I',len(x)))
+s1.sendall(x)
+
+secret=struct.unpack('>I',s1.recv(4))[0]
+sec=s1.recv(secret)
+
+print json.loads(obj.encrypt(sec))
+
+print"--------------------------------stolen secret-----------------------------"
+s1.close
+
+
+
+
+s2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+host = socket.gethostname()
+
+port = 5453
+
+s2.connect(('127.0.0.1', port))
+print"-------------------------stolen_session_key----------------"
+stolen_session=open('stolen_session_key').read()
+print stolen_session
+print"------------------------stolen blob------------------------"
+auth_key=open('auth_key').read()
+print auth_key
+
+print(type(auth_key))
+l=str(auth_key)
+print(type(l))
+json_l_k = len(l)
+print json_l_k
+
+ascii_key = chr(json_l_k)
+
+print ascii_key
+print"-------------------------------"
+json_4b = "\0\0\0"+str(ascii_key)
+print(json_4b)
+print"-------------------------------"
+
+print"-----------------------recieving from  blob--------------------------"
+s2.send(json_4b)
+s2.send(auth_key)
+
+s2.recv(4)
+k=s2.recv(100)
+print k
+ses= stolen_session
+obj=cipher.new(ses)
+x=obj.decrypt(k)
+print(x)
+
+print"------------------------sending the nonce------------------------------"
+l=json.loads(x)
+print l
+c=l["nonce"]
+
+nonce_alt=c-1
+x=obj.encrypt(json.dumps({'nonce':nonce_alt}))
+print x
+
+s2.sendall(struct.pack('>I',len(x)))
+s2.sendall(x)
+
+secret=struct.unpack('>I',s2.recv(4))[0]
+sec=s2.recv(secret)
+print"--------------------------------Stoled Secret-----------------------------"
+print json.loads(obj.encrypt(sec))
+s2.close
+s.close
