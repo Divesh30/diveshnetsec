@@ -1,0 +1,15 @@
+import socket
+import json
+import time
+
+s=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+hostname=socket.gethostname()
+print hostname
+port = 2002
+s.connect(('127.0.0.1',port))
+s.sendall('{"command":"AU')
+time.sleep(5)
+s.sendall('TH","user": "corporatebase"}')
+result=s.recv(2048)
+print "Result", result
+s.close
